@@ -1,45 +1,22 @@
-// A / X for Rock, B / Y for Paper, and C / Z for Scissors
-// A / X > C / Z
-// C / Z > B / Y
-// B / Y > A / X
-
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay3.txt';
-
-const caloriesSums = new Array();
-
-let priority = {};
-let p = 1;
-for (let i = 97; i <= 122; ++i, ++p) {
-    priority[String.fromCharCode(i)] = p;
-}
-for (let i = 65; i <= 90; ++i, ++p) {
-    priority[String.fromCharCode(i)] = p;
-}
+var filePath = './inputDay4.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let lines = buffer.toString().split('\n');
 
 let totalPoints = 0;
-for (let i = 0; i < lines.length; ++i) {
-    if (lines[i].length > 0 && (i % 3) == 0) {
-        let first = lines[i];
-        let second = lines[i + 1];
-        let third = lines[i + 2];
-        let id;
-        [...first].forEach((fc) => {
-            [...second].forEach((sc) => {
-                [...third].forEach((tc) => {
-                    if (fc == sc && fc == tc)
-                        id = fc;
-                });
-            });
-        });
+lines.forEach((line, index) => {
+    if (line.length > 0) {
+        const regexp = /(\d+)-(\d+),(\d+)-(\d+)/g;
+        const match = regexp.exec(line);
+        let firstInsideSecond = parseInt(match[1]) >= parseInt(match[3]) && parseInt(match[2]) <= parseInt(match[4]);
+        let secondInsideFirst = parseInt(match[1]) <= parseInt(match[3]) && parseInt(match[2]) >= parseInt(match[4]);
 
-        totalPoints += priority[id];
+        if (firstInsideSecond || secondInsideFirst)
+            ++totalPoints;
     }
-};
+});
 
 console.log(totalPoints);
 
