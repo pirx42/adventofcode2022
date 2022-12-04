@@ -10,10 +10,12 @@ lines.forEach((line, index) => {
     if (line.length > 0) {
         const regexp = /(\d+)-(\d+),(\d+)-(\d+)/g;
         const match = regexp.exec(line);
-        let firstInsideSecond = parseInt(match[1]) >= parseInt(match[3]) && parseInt(match[2]) <= parseInt(match[4]);
-        let secondInsideFirst = parseInt(match[1]) <= parseInt(match[3]) && parseInt(match[2]) >= parseInt(match[4]);
+        let firstCompletelyInsideSecond = parseInt(match[1]) >= parseInt(match[3]) && parseInt(match[2]) <= parseInt(match[4]);
+        let secondCompletelyInsideFirst = parseInt(match[1]) <= parseInt(match[3]) && parseInt(match[2]) >= parseInt(match[4]);
+        let secondBeginInsideFirst = parseInt(match[1]) <= parseInt(match[3]) && parseInt(match[2]) >= parseInt(match[3]);
+        let secondEndInsideFirst = parseInt(match[1]) <= parseInt(match[4]) && parseInt(match[2]) >= parseInt(match[4]);
 
-        if (firstInsideSecond || secondInsideFirst)
+        if (firstCompletelyInsideSecond || secondCompletelyInsideFirst || secondBeginInsideFirst || secondEndInsideFirst)
             ++totalPoints;
     }
 });
