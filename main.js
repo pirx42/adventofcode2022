@@ -45,10 +45,14 @@ for (let currentLine = stackHeight + 2; currentLine < lines.length; ++currentLin
     //move 1 from 5 to 2
     const regexp = /move (\d+) from (\d+) to (\d+)/g;
     const match = regexp.exec(line);
+    let takenCrates = [];
     for (let i = 0; i < match[1]; ++i) {
         let crate = takeCrate(stacks[match[2] - 1]);
-        putCrate(stacks[match[3] - 1], crate);
+        takenCrates.unshift(crate);
     }
+    takenCrates.forEach((crate) => {
+        putCrate(stacks[match[3] - 1], crate);
+    });
 };
 
 //final result
