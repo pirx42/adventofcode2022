@@ -70,19 +70,30 @@ input.split('\n').forEach((line, index) => {
 
 updateContentsSize(root);
 
-let sum = 0;
-sumupSmallSizedFolder(root);
-console.log(sum);
+let orderedFoldersBySize = new Array();
+flattenFolder(root);
+orderedFoldersBySize.sort((a, b) => a.size - b.size);
+
+let requiredSize = 30000000;
+let unusedSpace = 70000000 - root.size;
+let minimumSpaceToFree = requiredSize - unusedSpace;
+
+orderedFoldersBySize.every((folder) => {
+    if (folder.size >= minimumSpaceToFree) {
+        console.log(folder.size);
+        return false;
+    }
+    return true;;
+})
 
 
-function sumupSmallSizedFolder(folder) {
+function flattenFolder(folder) {
     folder.content.forEach((element) => {
         if (element.hasOwnProperty('parent'))
-            sumupSmallSizedFolder(element);
+            flattenFolder(element);
     });
 
-    if (folder.size < 100000)
-        sum += folder.size;
+    orderedFoldersBySize.push(folder);
 }
 
 
