@@ -21,55 +21,44 @@ input.split('\n').forEach((line, index) => {
 let gridWidth = treeGrid[0].length;
 let gridHeight = treeGrid.length;
 
-let numVisibleTrees = 0;
-for (let row = 1; row < gridHeight - 1; ++row) {
-    for (let column = 1; column < gridWidth - 1; ++column) {
-        if (isTreeVisible(column, row))
-            ++numVisibleTrees;
+let maxViewingScore = 0;
+for (let row = 0; row < gridHeight; ++row) {
+    for (let column = 0; column < gridWidth; ++column) {
+        calcViewingScore(column, row);
     }
 }
 
-console.log(gridWidth * 2 + (gridHeight - 2) * 2 + numVisibleTrees);
+console.log(maxViewingScore);
 
 
-
-function isTreeVisible(column, row) {
-    let visibleToLeft = true;
-    for (let c = 0; c < column; ++c) {
-        if (treeGrid[row][c] >= treeGrid[row][column]) {
-            visibleToLeft = false;
+function calcViewingScore(column, row) {
+    let distanceToLeft = 0;
+    for (let c = column - 1; c >= 0; --c) {
+        ++distanceToLeft;
+        if (treeGrid[row][c] >= treeGrid[row][column])
             break;
-        }
     }
-    if (visibleToLeft)
-        return true;
 
-    let visibleToRight = true;
-    for (let c = column + 1; c < gridHeight; ++c) {
-        if (treeGrid[row][c] >= treeGrid[row][column]) {
-            visibleToRight = false;
+    let distanceToRight = 0;
+    for (let c = column + 1; c < gridWidth; ++c) {
+        ++distanceToRight;
+        if (treeGrid[row][c] >= treeGrid[row][column])
             break;
-        }
     }
-    if (visibleToRight)
-        return true;
 
-    let visibleToTop = true;
-    for (let r = 0; r < row; ++r) {
-        if (treeGrid[r][column] >= treeGrid[row][column]) {
-            visibleToTop = false;
+    let distanceToTop = 0;
+    for (let r = row - 1; r >= 0; --r) {
+        ++distanceToTop;
+        if (treeGrid[r][column] >= treeGrid[row][column])
             break;
-        }
     }
-    if (visibleToTop)
-        return true;
 
-    let visibleToBottom = true;
+    let distanceToBottom = 0;
     for (let r = row + 1; r < gridHeight; ++r) {
-        if (treeGrid[r][column] >= treeGrid[row][column]) {
-            visibleToBottom = false;
+        ++distanceToBottom;
+        if (treeGrid[r][column] >= treeGrid[row][column])
             break;
-        }
     }
-    return visibleToBottom;
+
+    maxViewingScore = Math.max(distanceToLeft * distanceToRight * distanceToTop * distanceToBottom, maxViewingScore);
 }
