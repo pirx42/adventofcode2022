@@ -39,15 +39,26 @@ input.split('\n').forEach((line, index) => {
 });
 
 let headPosition = [0, 0];
-let tailPosition = [0, 0];
+let tailPositions = [];
+for (let i = 1; i < 10; ++i)
+    tailPositions.push([0, 0]);
+
 let tailVisitedMap = new Set();
 
 rolledOutMotions.forEach((element) => {
     headPosition[0] += element[0];
     headPosition[1] += element[1];
 
-    updateTail(headPosition, tailPosition);
-    tailVisitedMap.add(tailPosition[0].toString() + '|' + tailPosition[1].toString());
+    updateTail(headPosition, tailPositions[0]);
+    updateTail(tailPositions[0], tailPositions[1]);
+    updateTail(tailPositions[1], tailPositions[2]);
+    updateTail(tailPositions[2], tailPositions[3]);
+    updateTail(tailPositions[3], tailPositions[4]);
+    updateTail(tailPositions[4], tailPositions[5]);
+    updateTail(tailPositions[5], tailPositions[6]);
+    updateTail(tailPositions[6], tailPositions[7]);
+    updateTail(tailPositions[7], tailPositions[8]);
+    tailVisitedMap.add(tailPositions[8][0].toString() + '|' + tailPositions[8][1].toString());
 });
 
 console.log(tailVisitedMap.size);
