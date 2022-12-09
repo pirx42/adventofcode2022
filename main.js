@@ -1,64 +1,71 @@
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay8.txt';
+var filePath = './inputDay9.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-// let testInput = '30373\n\
-// 25512\n\
-// 65332\n\
-// 33549\n\
-// 35390\n';
+// let testInput = 'R 4\n\
+// U 4\n\
+// L 3\n\
+// D 1\n\
+// R 4\n\
+// D 1\n\
+// L 5\n\
+// R 2\n';
 
-let treeGrid = [];
+let rolledOutMotions = [];
 input.split('\n').forEach((line, index) => {
     if (line.length > 0) {
-        treeGrid.push([...line]);
+        const reCmdCDX = /(\S) (\d+)/g;
+        match = reCmdCDX.exec(line);
+        if (match[1] == 'U') {
+            for (let i = 0; i < parseInt(match[2]); ++i)
+                rolledOutMotions.push([0, -1]);
+        }
+        else if (match[1] == 'L') {
+            for (let i = 0; i < parseInt(match[2]); ++i)
+                rolledOutMotions.push([-1, 0]);
+        }
+        else if (match[1] == 'D') {
+            for (let i = 0; i < parseInt(match[2]); ++i)
+                rolledOutMotions.push([0, 1]);
+        }
+        else if (match[1] == 'R') {
+            for (let i = 0; i < parseInt(match[2]); ++i)
+                rolledOutMotions.push([1, 0]);
+        }
     }
 });
 
-let gridWidth = treeGrid[0].length;
-let gridHeight = treeGrid.length;
+let headPosition = [0, 0];
+let tailPosition = [0, 0];
+let tailVisitedMap = new Set();
 
-let maxViewingScore = 0;
-for (let row = 0; row < gridHeight; ++row) {
-    for (let column = 0; column < gridWidth; ++column) {
-        calcViewingScore(column, row);
-    }
-}
+rolledOutMotions.forEach((element) => {
+    headPosition[0] += element[0];
+    headPosition[1] += element[1];
 
-console.log(maxViewingScore);
+    updateTail(headPosition, tailPosition);
+    tailVisitedMap.add(tailPosition[0].toString() + '|' + tailPosition[1].toString());
+});
+
+console.log(tailVisitedMap.size);
 
 
-function calcViewingScore(column, row) {
-    let distanceToLeft = 0;
-    for (let c = column - 1; c >= 0; --c) {
-        ++distanceToLeft;
-        if (treeGrid[row][c] >= treeGrid[row][column])
-            break;
-    }
-
-    let distanceToRight = 0;
-    for (let c = column + 1; c < gridWidth; ++c) {
-        ++distanceToRight;
-        if (treeGrid[row][c] >= treeGrid[row][column])
-            break;
-    }
-
-    let distanceToTop = 0;
-    for (let r = row - 1; r >= 0; --r) {
-        ++distanceToTop;
-        if (treeGrid[r][column] >= treeGrid[row][column])
-            break;
-    }
-
-    let distanceToBottom = 0;
-    for (let r = row + 1; r < gridHeight; ++r) {
-        ++distanceToBottom;
-        if (treeGrid[r][column] >= treeGrid[row][column])
-            break;
-    }
-
-    maxViewingScore = Math.max(distanceToLeft * distanceToRight * distanceToTop * distanceToBottom, maxViewingScore);
+function updateTail(headPosition, tailPosition) {
+    let headTailOffset = [headPosition[0] - tailPosition[0], headPosition[1] - tailPosition[1]];
+    if (Math.abs(headTailOffset[0]) <= 1 && Math.abs(headTailOffset[1]) <= 1)
+        return;
+    let tailMotion = headTailOffset;
+    if (tailMotion[0] > 1)
+        tailMotion[0] = 1;
+    else if (tailMotion[0] < -1)
+        tailMotion[0] = -1;
+    if (tailMotion[1] > 1)
+        tailMotion[1] = 1;
+    else if (tailMotion[1] < -1)
+        tailMotion[1] = -1;
+    tailPosition[0] += tailMotion[0];
+    tailPosition[1] += tailMotion[1];
 }
