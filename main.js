@@ -21,11 +21,28 @@ input.split('\n').forEach((line, index) => {
 });
 
 let registerValue = 1;
-let summedSignalStrength = 0;
+let contentOfCRT = '';
 rolledInstructionsPerCycle.forEach((ipc, index) => {
-    if (index == 20 || index == 60 || index == 100 || index == 140 || index == 180 || index == 220)
-        summedSignalStrength += registerValue * index;
+    updateCRT(registerValue, index + 1);
     registerValue += ipc;
 });
 
-console.log(summedSignalStrength);
+drawCRT();
+
+//helper
+function updateCRT(position, cycle) {
+    let crtPosition = (cycle - 1) % 40;
+    if (position - 1 <= crtPosition && position + 1 >= crtPosition)
+        contentOfCRT += '#';
+    else
+        contentOfCRT += '.';
+}
+
+function drawCRT() {
+    console.log(contentOfCRT.slice(0, 39));
+    console.log(contentOfCRT.slice(40, 79));
+    console.log(contentOfCRT.slice(80, 119));
+    console.log(contentOfCRT.slice(120, 159));
+    console.log(contentOfCRT.slice(160, 199));
+    console.log(contentOfCRT.slice(200, 239));
+}
