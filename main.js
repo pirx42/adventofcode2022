@@ -1,48 +1,62 @@
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay10.txt';
 
-let buffer = fs.readFileSync(path.join(__dirname, filePath));
-let input = buffer.toString();
+const addOp = 'addOp';
+const mulOp = 'mulOp';
+const squareOp = 'squareOp';
 
-let rolledInstructionsPerCycle = [];
-input.split('\n').forEach((line, index) => {
-    if (line.length > 0) {
-        const reCmdAddX = /addx (\S+)/g;
-        match = reCmdAddX.exec(line);
-        if (match) {
-            rolledInstructionsPerCycle.push(0);
-            rolledInstructionsPerCycle.push(parseInt(match[1]));
-        }
-        else { //noop
-            rolledInstructionsPerCycle.push(0);
-        }
-    }
-});
 
-let registerValue = 1;
-let contentOfCRT = '';
-rolledInstructionsPerCycle.forEach((ipc, index) => {
-    updateCRT(registerValue, index + 1);
-    registerValue += ipc;
-});
+let monkeys = [
+    createMonkey([83, 88, 96, 79, 86, 88, 70], mulOp, 5, 11, 2, 3),
+    createMonkey([59, 63, 98, 85, 68, 72], mulOp, 11, 5, 4, 0),
+    createMonkey([90, 79, 97, 52, 90, 94, 71, 70], addOp, 2, 19, 5, 6),
+    createMonkey([97, 55, 62], addOp, 5, 13, 2, 6),
+    createMonkey([74, 54, 94, 76], squareOp, 0, 7, 0, 3),
+    createMonkey([58], addOp, 4, 17, 7, 1),
+    createMonkey([66, 63], addOp, 6, 2, 7, 5),
+    createMonkey([56, 56, 90, 96, 68], addOp, 7, 3, 4, 1),
+];
 
-drawCRT();
 
-//helper
-function updateCRT(position, cycle) {
-    let crtPosition = (cycle - 1) % 40;
-    if (position - 1 <= crtPosition && position + 1 >= crtPosition)
-        contentOfCRT += '#';
-    else
-        contentOfCRT += '.';
+for (let round = 0; round < 20; ++round) {
+    monkeys.forEach(monkey => processMonkey(monkey));
 }
 
-function drawCRT() {
-    console.log(contentOfCRT.slice(0, 39));
-    console.log(contentOfCRT.slice(40, 79));
-    console.log(contentOfCRT.slice(80, 119));
-    console.log(contentOfCRT.slice(120, 159));
-    console.log(contentOfCRT.slice(160, 199));
-    console.log(contentOfCRT.slice(200, 239));
+monkeys.sort((a, b) => b.inspectedItems - a.inspectedItems);
+
+console.log(monkeys[0].inspectedItems * monkeys[1].inspectedItems);
+
+
+
+function processMonkey(monkey) {
+    while (monkey.items.length > 0) {
+        ++monkey.inspectedItems;
+        let item = monkey.items.shift();
+        let worryLevel = 0;
+        if (monkey.operation == addOp)
+            worryLevel = item + monkey.operand;
+        else if (monkey.operation == mulOp)
+            worryLevel = item * monkey.operand;
+        else if (monkey.operation == squareOp)
+            worryLevel = item * item;
+
+        worryLevel = Math.trunc(worryLevel / 3);
+
+        if (worryLevel % monkey.testValue == 0)
+            monkeys[monkey.trueTarget].items.push(worryLevel);
+        else
+            monkeys[monkey.falseTarget].items.push(worryLevel);
+    };
+}
+
+function createMonkey(items, operation, operand, testValue, trueTarget, falseTarget) {
+    return {
+        'items': items,
+        'operation': operation,
+        'operand': operand,
+        'testValue': testValue,
+        'trueTarget': trueTarget,
+        'falseTarget': falseTarget,
+        'inspectedItems': 0,
+    }
 }
