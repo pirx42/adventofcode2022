@@ -5,22 +5,29 @@ var filePath = './inputDay13.txt';
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-let summedIndices = 0;
 let lines = input.split('\n');
+let dividerPacketA = [[2]];
+let dividerPacketB = [[6]];
+let packets = [dividerPacketA, dividerPacketB];
+
 for (let i = 0; i < lines.length; i += 3) {
     if (lines[0].length == 0)
         break;
 
-    let first = JSON.parse(lines[i]);
-    let second = JSON.parse(lines[i + 1]);
-    if (isRightOrder(first, second) <= 0) {
-        summedIndices += Math.trunc(i / 3 + 1);
-    }
+    packets.push(JSON.parse(lines[i]));
+    packets.push(JSON.parse(lines[i + 1]));
 }
 
-console.log(summedIndices);
+packets.sort((a, b) => compareOrder(a, b));
 
-function isRightOrder(lhs, rhs) {
+let idxA = packets.findIndex((element) => element == dividerPacketA);
+let idxB = packets.findIndex((element) => element == dividerPacketB);
+console.log((idxA + 1) * (idxB + 1));
+
+
+// right order: <=0
+// not right order: >0
+function compareOrder(lhs, rhs) {
     if (Number.isInteger(lhs) && Number.isInteger(rhs)) {
         return lhs - rhs;
     }
@@ -31,7 +38,7 @@ function isRightOrder(lhs, rhs) {
             if (i < lhs.length && i >= rhs.length)
                 return 1;
 
-            let result = isRightOrder(lhs[i], rhs[i]);
+            let result = compareOrder(lhs[i], rhs[i]);
             if (result < 0)
                 return -1;
             else if (result > 0)
@@ -40,10 +47,10 @@ function isRightOrder(lhs, rhs) {
         return 0;
     }
     else if (Number.isInteger(lhs)) {
-        return isRightOrder([lhs], rhs);
+        return compareOrder([lhs], rhs);
     }
     else if (Number.isInteger(rhs)) {
-        return isRightOrder(lhs, [rhs]);
+        return compareOrder(lhs, [rhs]);
     }
     return 0;
 }
