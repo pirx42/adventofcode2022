@@ -34,8 +34,21 @@ for (let y = 0; y < heightMap.length; ++y) {
 
 const neighbors = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
-updateDistancesOfNeighbors(start, 0);
-console.log(distanceAt(destination));
+let foundDistances = [];
+
+for (let y = 0; y < heightMap.length; ++y) {
+    for (let x = 0; x < heightMap[0].length; ++x) {
+        let pos = [x, y];
+        if (levelAt(pos) == 0) {
+            initializeDistanceMap();
+            updateDistancesOfNeighbors(pos, 0);
+            foundDistances.push(distanceAt(destination));
+        }
+    }
+}
+
+foundDistances.sort();
+console.log(foundDistances[0]);
 
 
 function updateDistancesOfNeighbors(current, distance) {
@@ -51,6 +64,14 @@ function updateDistancesOfNeighbors(current, distance) {
         if (distanceAt(next) <= distance + 1)
             continue;
         updateDistancesOfNeighbors(next, distance + 1);
+    }
+}
+
+function initializeDistanceMap() {
+    for (let y = 0; y < distanceMap.length; ++y) {
+        for (let x = 0; x < distanceMap[0].length; ++x) {
+            distanceMap[y][x] = 99999;
+        }
     }
 }
 
