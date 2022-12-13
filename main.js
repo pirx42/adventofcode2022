@@ -1,58 +1,77 @@
-const addOp = 0;
-const mulOp = 1;
-const squareOp = 2;
+var fs = require('fs');
+var path = require('path');
+var filePath = './inputDay12.txt';
 
-let monkeys = [
-    createMonkey([83n, 88n, 96n, 79n, 86n, 88n, 70n], mulOp, 5n, 11n, 2, 3),
-    createMonkey([59n, 63n, 98n, 85n, 68n, 72n], mulOp, 11n, 5n, 4, 0),
-    createMonkey([90n, 79n, 97n, 52n, 90n, 94n, 71n, 70n], addOp, 2n, 19n, 5, 6),
-    createMonkey([97n, 55n, 62n], addOp, 5n, 13n, 2, 6),
-    createMonkey([74n, 54n, 94n, 76n], squareOp, 0n, 7n, 0, 3),
-    createMonkey([58n], addOp, 4n, 17n, 7, 1),
-    createMonkey([66n, 63n], addOp, 6n, 2n, 7, 5),
-    createMonkey([56n, 56n, 90n, 96n, 68n], addOp, 7n, 3n, 4, 1),
-];
+let buffer = fs.readFileSync(path.join(__dirname, filePath));
+let input = buffer.toString();
 
+let heightMap = [];
+input.split('\n').forEach((line, index) => {
+    if (line.length > 0) {
+        heightMap.push([...line]);
+    }
+});
 
-let primesLCM = 2n * 3n * 5n * 7n * 11n * 13n * 17n * 19n * 23n;
-for (let round = 0; round < 10000; ++round) {
-    monkeys.forEach(monkey => processMonkey(monkey));
+let start = [0, 0];
+let destination = [0, 0];
+let distanceMap = new Array(heightMap.length);
+
+for (let y = 0; y < heightMap.length; ++y) {
+    for (let x = 0; x < heightMap[0].length; ++x) {
+        if (heightMap[y][x] == 'S') {
+            start = [x, y];
+            heightMap[y][x] = 'a';
+        }
+        else if (heightMap[y][x] == 'E') {
+            destination = [x, y];
+            heightMap[y][x] = 'z';
+        }
+        heightMap[y][x] = heightMap[y][x].charCodeAt() - 97;
+    }
+    distanceMap[y] = new Array(heightMap[0].length).fill(99999);
 }
 
 
-monkeys.sort((a, b) => b.inspectedItems - a.inspectedItems);
+const neighbors = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
-console.log(monkeys[0].inspectedItems * monkeys[1].inspectedItems);
+updateDistancesOfNeighbors(start, 0);
+console.log(distanceAt(destination));
 
 
-function processMonkey(monkey) {
-    while (monkey.items.length > 0) {
-        ++monkey.inspectedItems;
-        let item = monkey.items.shift();
-        if (monkey.operation === addOp)
-            item += monkey.operand;
-        else if (monkey.operation === mulOp)
-            item *= monkey.operand;
-        else if (monkey.operation === squareOp)
-            item *= item;
+function updateDistancesOfNeighbors(current, distance) {
+    distanceMap[current[1]][current[0]] = distance;
 
-        item %= primesLCM;
+    if (equal(current, destination))
+        return;
 
-        if (item % monkey.testValue == 0)
-            monkeys[monkey.trueTarget].items.push(item);
-        else
-            monkeys[monkey.falseTarget].items.push(item);
+    for (let i = 0; i < neighbors.length; ++i) {
+        let next = add(current, neighbors[i]);
+        if (levelAt(next) > levelAt(current) + 1)
+            continue;
+        if (distanceAt(next) <= distance + 1)
+            continue;
+        updateDistancesOfNeighbors(next, distance + 1);
     }
 }
 
-function createMonkey(items, operation, operand, testValue, trueTarget, falseTarget) {
-    return {
-        'items': items,
-        'operation': operation,
-        'operand': operand,
-        'testValue': testValue,
-        'trueTarget': trueTarget,
-        'falseTarget': falseTarget,
-        'inspectedItems': 0,
-    }
+function levelAt(pos) {
+    if (pos[0] < 0 || pos[0] >= heightMap[0].length ||
+        pos[1] < 0 || pos[1] >= heightMap.length)
+        return -1;
+    return heightMap[pos[1]][pos[0]];
+}
+
+function distanceAt(pos) {
+    if (pos[0] < 0 || pos[0] >= distanceMap[0].length ||
+        pos[1] < 0 || pos[1] >= distanceMap.length)
+        return 0;
+    return distanceMap[pos[1]][pos[0]];
+}
+
+function add(p1, p2) {
+    return [p1[0] + p2[0], p1[1] + p2[1]];
+}
+
+function equal(p1, p2) {
+    return p1[0] == p2[0] && p1[1] == p2[1];
 }
