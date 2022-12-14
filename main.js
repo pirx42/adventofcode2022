@@ -26,6 +26,14 @@ input.split('\n').forEach((line) => {
     }
 });
 
+
+let floorLeft = 500 - (maxY + 2);
+let floorRight = 500 + maxY + 2;
+scanlines.push([[floorLeft, maxY + 2], [floorRight, maxY + 2]]);
+minX = Math.min(minX, floorLeft);
+maxX = Math.max(minX, floorRight);
+maxY += 2;
+
 const OUT = -1;
 const EMPTY = 0;
 const ROCK = 1;
@@ -50,13 +58,12 @@ scanlines.forEach((scanline) => {
 let possibleNextPositions = [[0, 1], [-1, 1], [1, 1]];
 let sandSpawnPosition = [500 - minX, 0];
 let numRestedSands = 0;
-let sandFlowingOut = false;
 
-while (true) {
+while (elementAt(sandSpawnPosition) == EMPTY) {
     let currentSandPosition = sandSpawnPosition;
     let currentSandRests = false;
 
-    while (!currentSandRests && !sandFlowingOut) {
+    while (!currentSandRests) {
 
         currentSandRests = true;
         for (let i = 0; i < possibleNextPositions.length; ++i) {
@@ -66,14 +73,8 @@ while (true) {
                 currentSandRests = false;
                 break;
             }
-            else if (elementAt(next) == OUT) {
-                sandFlowingOut = true;
-                break;
-            }
         }
     }
-    if (sandFlowingOut)
-        break;
 
     ++numRestedSands;
     simulationStateMap[currentSandPosition[1]][currentSandPosition[0]] = SAND;
