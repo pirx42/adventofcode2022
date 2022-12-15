@@ -1,129 +1,63 @@
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay14.txt';
+var filePath = './inputDay15.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-let minX = 999;
-let maxX = -999;
-let minY = 0;
-let maxY = -999;
-
-let scanlines = [];
+let sensorBeaconWithDistances = [];
+let minX = 9999999999;
+let maxX = -9999999999;
 input.split('\n').forEach((line) => {
     if (line.length > 0) {
-        let scanline = [];
-        line.split(' -> ').forEach((elements) => {
-            let el = elements.split(',');
-            let pos = [el[0], el[1]];
-            minX = Math.min(minX, el[0]);
-            maxX = Math.max(maxX, el[0]);
-            maxY = Math.max(maxY, el[1]);
-            scanline.push(pos);
-        });
-        scanlines.push(scanline);
+        const regex = /Sensor at x=(\S+), y=(\S+): closest beacon is at x=(\S+), y=(\S+)/g;
+        match = regex.exec(line);
+        let sensorPos = [parseInt(match[1]), parseInt(match[2])];
+        let beaconPos = [parseInt(match[3]), parseInt(match[4])];
+        let distance = manhattanDistance(sensorPos, beaconPos);
+        sensorBeaconWithDistances.push([sensorPos, beaconPos, distance]);
+        minX = Math.min(minX, sensorPos[0] - distance);
+        maxX = Math.max(maxX, sensorPos[0] + distance);
     }
 });
 
-
-let floorLeft = 500 - (maxY + 2);
-let floorRight = 500 + maxY + 2;
-scanlines.push([[floorLeft, maxY + 2], [floorRight, maxY + 2]]);
-minX = Math.min(minX, floorLeft);
-maxX = Math.max(minX, floorRight);
-maxY += 2;
-
-const OUT = -1;
-const EMPTY = 0;
-const ROCK = 1;
-const SAND = 2;
-
-let mapOffset = [minX, minY];
 let mapWidth = maxX - minX + 1;
-let mapHeight = maxY - minY + 1;
-let simulationStateMap = new Array(mapHeight);
-for (let y = 0; y < mapHeight; ++y) {
-    simulationStateMap[y] = new Array(mapWidth).fill(EMPTY);
-}
-
-//setup map
-scanlines.forEach((scanline) => {
-    for (let i = 0; i < scanline.length - 1; ++i) {
-        drawLine(sub(scanline[i], mapOffset), sub(scanline[i + 1], mapOffset));
-    }
+let targetMapRow = 2000000;
+let coverageMapRow = new Array(mapWidth).fill(0);
+sensorBeaconWithDistances.forEach((sensorBeaconWithDistance) => {
+    let sensorPos = sensorBeaconWithDistance[0];
+    let beaconPos = sensorBeaconWithDistance[1];
+    if (sensorPos[1] == targetMapRow)
+        coverageMapRow[sensorPos[0] - minX] = 2;
+    if (beaconPos[1] == targetMapRow)
+        coverageMapRow[beaconPos[0] - minX] = 3;
 });
 
-//simulate
-let possibleNextPositions = [[0, 1], [-1, 1], [1, 1]];
-let sandSpawnPosition = [500 - minX, 0];
-let numRestedSands = 0;
+sensorBeaconWithDistances.forEach((sensorBeaconWithDistance) => {
+    markCoverage(sensorBeaconWithDistance[0], sensorBeaconWithDistance[1], sensorBeaconWithDistance[2]);
+});
 
-while (elementAt(sandSpawnPosition) == EMPTY) {
-    let currentSandPosition = sandSpawnPosition;
-    let currentSandRests = false;
-
-    while (!currentSandRests) {
-
-        currentSandRests = true;
-        for (let i = 0; i < possibleNextPositions.length; ++i) {
-            let next = add(currentSandPosition, possibleNextPositions[i]);
-            if (elementAt(next) == EMPTY) {
-                currentSandPosition = next;
-                currentSandRests = false;
-                break;
-            }
-        }
-    }
-
-    ++numRestedSands;
-    simulationStateMap[currentSandPosition[1]][currentSandPosition[0]] = SAND;
-}
-
-
-console.log(numRestedSands);
+console.log(coverageMapRow.filter((e) => e == 1).length);
 
 
 //helper
-function drawLine(from, to) {
-    let delta = normalize(sub(to, from));
-    let current = [...from];
-    while (!equal(current, to)) {
-        simulationStateMap[current[1]][current[0]] = ROCK;
-        current = add(current, delta);
+function markCoverage(sensorPos, beaconPos, distance) {
+    let deltaYToTargetY = Math.abs(sensorPos[1] - targetMapRow);
+
+    if (distance < deltaYToTargetY)
+        return;
+    let a = distance - deltaYToTargetY;
+    for (let i = sensorPos[0] - a - minX; i <= sensorPos[0] + a - minX; ++i) {
+        if (coverageMapRow[i] == 0)
+            coverageMapRow[i] = 1;
     }
-    simulationStateMap[current[1]][current[0]] = ROCK;
-}
-
-function elementAt(pos) {
-    if (pos[0] < 0 || pos[0] >= simulationStateMap[0].length ||
-        pos[1] < 0 || pos[1] >= simulationStateMap.length)
-        return OUT;
-    return simulationStateMap[pos[1]][pos[0]];
-}
-
-function add(p1, p2) {
-    return [p1[0] + p2[0], p1[1] + p2[1]];
 }
 
 function sub(p1, p2) {
     return [p1[0] - p2[0], p1[1] - p2[1]];
 }
 
-function normalize(dir) {
-    let length = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
-    if (length > 0)
-        return [Math.trunc(dir[0] / length), Math.trunc(dir[1] / length)];
-    return dir;
-}
-
-function sign(value) {
-    if (value >= 0)
-        return 1;
-    else
-        return -1;
-}
-
-function equal(p1, p2) {
-    return p1[0] == p2[0] && p1[1] == p2[1];
+function manhattanDistance(p1, p2) {
+    let delta = sub(p1, p2);
+    return Math.abs(delta[0]) + Math.abs(delta[1]);
 }
