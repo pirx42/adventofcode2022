@@ -1,109 +1,143 @@
 var fs = require('fs');
+const { validateHeaderValue } = require('http');
 var path = require('path');
-var filePath = './inputDay15.txt';
+var filePath = './inputDay16.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-let dim = 4000000;
-let sensorWithDistances = [];
-let minX = 0;
-let maxX = dim;
+let valves = {};
+let valveStates = {};
+let simplifiedValveNetwork = {};
+simplifiedValveNetwork['AA'] = { 'id': 'AA', 'to': [] };
+
 input.split('\n').forEach((line) => {
     if (line.length > 0) {
-        const regex = /Sensor at x=(\S+), y=(\S+): closest beacon is at x=(\S+), y=(\S+)/g;
-        match = regex.exec(line);
-        let sensorPos = [parseInt(match[1]), parseInt(match[2])];
-        let beaconPos = [parseInt(match[3]), parseInt(match[4])];
-        let distance = manhattanDistance(sensorPos, beaconPos);
-        sensorWithDistances.push([sensorPos, distance]);
+        const regex = /Valve (\S+) has flow rate=(\S+); tunnels? leads? to valves? (.+)/g;
+        let match = regex.exec(line);
+
+        let rate = parseInt(match[2]);
+        if (rate > 0) {
+            valveStates[match[1]] = { 'rate': rate, 'open': false, 'timeOpened': 0 };
+            simplifiedValveNetwork[match[1]] = { 'id': match[1], 'to': [] };
+        }
+        valves[match[1]] = {
+            'id': match[1],
+            'distance': 999,
+            'to': match[3].split(', ')
+        };
     }
 });
 
-let mapWidth = maxX - minX + 1;
+for (const [id, valve] of Object.entries(valves)) {
+    let toIDs = [...valve.to];
+    valve.to = [];
+    toIDs.forEach((id) => {
+        valve.to.push(valves[id])
+    });
+};
 
-for (let row = 0; row < dim; ++row) {
+//generate simplified network keeping only shortest connections to vales with rate > 0 with their distances.
+for (const [id, valve] of Object.entries(simplifiedValveNetwork)) {
+    //initialize distances
+    for (const [id, valve] of Object.entries(valves)) { valve.distance = 999; }
 
-    let ranges = [];
-    sensorWithDistances.forEach((sensorWithDistance) => {
-        let sensorPos = sensorWithDistance[0];
-        let distance = sensorWithDistance[1];
-        let deltaYToTargetY = Math.abs(sensorPos[1] - row);
+    //generate shortest distances
+    updateDistancesOfNeighbors(valves[id], 0);
 
-        if (distance >= deltaYToTargetY) {
-            let a = distance - deltaYToTargetY;
-            let start = sensorPos[0] - a - minX;
-            start = Math.max(start, minX);
-            let end = sensorPos[0] + a - minX;
-            end = Math.min(end, maxX);
-            ranges.push([start, end]);
+    //setup connections to others
+    for (const [otherId, otherValve] of Object.entries(simplifiedValveNetwork)) {
+        if (otherId != id) {
+            valve.to.push({ 'valve': otherValve, 'distance': valves[otherId].distance });
+        }
+    }
+};
+
+
+let bestScore = -1;
+let bestHistory = '';
+
+updatePressureOfNeighbors(simplifiedValveNetwork['AA'], 0, clone(valveStates), '');
+
+console.log(bestScore + ' ' + bestHistory);
+
+
+//helper
+function updatePressureOfNeighbors(valve, time, valveStates, history) {
+    if (time >= 30)
+        return;
+
+    history += ', ' + time + ' ' + totalRate(valveStates) + ' -> ' + valve.id;
+
+    let timeConsumed = 0;
+    let valveState = valveStates[valve.id];
+    if (valveState && !valveState.open) {
+        ++timeConsumed;
+        history += ', ' + (time + timeConsumed) + ' ' + totalRate(valveStates) + ' O ' + valve.id;
+        valveState.timeOpened = time + timeConsumed;
+        valveState.open = true;
+    }
+
+    valve.to.forEach((toElement) => {
+        let toValveState = valveStates[toElement.valve.id];
+        if (toValveState && !toValveState.open) {
+            updatePressureOfNeighbors(toElement.valve, time + timeConsumed + toElement.distance, clone(valveStates), [...history].join(''));
         }
     });
 
-    ranges.sort((a, b) => a[0] - b[0]);
-    let combinationDone = true;
-    while (combinationDone && ranges.length > 1) {
-        let newRanges = [];
-        let rangeA = ranges[0];
-        combinationDone = false;
-        for (let i = 1; i < ranges.length; ++i) {
-            let rangeB = ranges[i];
-            let combinedRange = combineRange(rangeA, rangeB);
-            if (combinedRange) {
-                newRanges.push(combinedRange);
-                for (let j = i + 1; j < ranges.length; ++j)
-                    newRanges.push(ranges[j]);
-                combinationDone = true;
-                break;
-            }
-            else {
-                newRanges.push(rangeB);
-            }
-        }
-        ranges = newRanges;
-    }
-
-    if (ranges.length > 1) {
-        let coverageMapRow = new Array(mapWidth).fill(0);
-        sensorWithDistances.forEach((sensorWithDistance) => {
-            markCoverage(coverageMapRow, sensorWithDistance[0], sensorWithDistance[1], row);
-        });
-        let col = coverageMapRow.findIndex((e) => e == 0);
-        console.log(row + ', ' + col + ': ' + (col * 4000000 + row));
-        // console.log([...coverageMapRow].join(''));
-        break;
+    let score = totalReleasedPressureAfter30Min(valveStates);
+    if (score > bestScore) {
+        bestScore = score;
+        bestHistory = history;
     }
 }
 
-//helper
-function markCoverage(coverageMapRow, sensorPos, distance, row) {
-    let deltaYToTargetY = Math.abs(sensorPos[1] - row);
-
-    if (distance < deltaYToTargetY)
+function updateDistancesOfNeighbors(valve, distance) {
+    if (valve.distance < distance)
         return;
-    let a = distance - deltaYToTargetY;
-    let start = sensorPos[0] - a - minX;
-    start = Math.max(start, minX);
-    let end = sensorPos[0] + a - minX;
-    end = Math.min(end, maxX);
-    for (let i = start; i <= end; ++i) {
-        coverageMapRow[i] = 1;
-    }
+    valve.distance = distance;
+
+    valve.to.forEach((toValve) => {
+        updateDistancesOfNeighbors(toValve, distance + 1);
+    });
 }
 
-function combineRange(rangeA, rangeB) {
-    let rangeAEndInsideRangeB = rangeA[1] >= rangeB[0] && rangeA[1] <= rangeB[1];
-    let rangeBEndInsideRangeA = rangeB[1] >= rangeA[0] && rangeB[1] <= rangeA[1];
-    if (rangeAEndInsideRangeB || rangeBEndInsideRangeA)
-        return [Math.min(rangeA[0], rangeB[0]), Math.max(rangeA[1], rangeB[1])];
-    return null;
+function totalReleasedPressureAfter30Min(valveStates) {
+    let sum = 0;
+    for (const [id, valveState] of Object.entries(valveStates)) {
+        if (valveState.open)
+            sum += (30 - valveState.timeOpened) * valveState.rate;
+    };
+    return sum;
 }
 
-function sub(p1, p2) {
-    return [p1[0] - p2[0], p1[1] - p2[1]];
+function maximalPossibleTotalReleasedPressureAfter30Min(time, valveStates) {
+    let sum = 0;
+    for (const [id, valveState] of Object.entries(valveStates)) {
+        if (!valveState.open)
+            sum += (30 - time) * valveState.rate;
+    };
+    return sum;
 }
 
-function manhattanDistance(p1, p2) {
-    let delta = sub(p1, p2);
-    return Math.abs(delta[0]) + Math.abs(delta[1]);
+function releasedPressure(time, valveStates) {
+    let sum = 0;
+    for (const [id, valveState] of Object.entries(valveStates)) {
+        if (valveState.open && (time - valveState.timeOpened) > 0)
+            sum += (time - valveState.timeOpened) * valveState.rate;
+    };
+    return sum;
+}
+
+function totalRate(valveStates) {
+    let rate = 0;
+    for (const [id, valveState] of Object.entries(valveStates)) {
+        if (valveState.open)
+            rate += valveState.rate;
+    };
+    return rate;
+}
+
+function clone(object) {
+    return JSON.parse(JSON.stringify(object));
 }
