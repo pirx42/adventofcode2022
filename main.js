@@ -1,216 +1,210 @@
+const { Console } = require('console');
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay16.txt';
-
-//!this is not an optimal solution as it take several hours to finish!
-//optimal valve opening order for total pressure of 2261:
-//agent A: 3 IZ, 7 CU, 11 QZ, 15 TU, 18 UZ, 21 YL, 24 PA
-//agent B: 4 TR, 7 FF, 10 GG, 13 ZL, 16 OI, 24 SZ
+var filePath = './inputDay23.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-let maxTime = 26;
+const NONE = -1;
 
-const startId = 'AA';
-let originalValveNetwork = {};
-let valveStates = new Map();
-let simplifiedValveNetwork = {};
-simplifiedValveNetwork[startId] = { 'id': startId, 'to': [] };
+const FREE = 0;
+const ELF = 999;
 
-input.split('\n').forEach((line) => {
+const N = 0;
+const NE = 1;
+const E = 2;
+const SE = 3;
+const S = 4;
+const SW = 5;
+const W = 6;
+const NW = 7;
+const NumDirections = 8;
+
+let directions = [];
+directions[N] = [0, -1];
+directions[NE] = [1, -1];
+directions[E] = [1, 0];
+directions[SE] = [1, 1];
+directions[S] = [0, 1];
+directions[SW] = [-1, 1];
+directions[W] = [-1, 0];
+directions[NW] = [-1, -1];
+
+let checkAndMoveDirections =
+    [[N, [N, NE, NW]],
+    [S, [S, SE, SW]],
+    [W, [W, NW, SW]],
+    [E, [E, NE, SE]]];
+
+let maxRounds = 10;
+let elves = [];
+input.split('\n').forEach((line, rowIndex) => {
     if (line.length > 0) {
-        const regex = /Valve (\S+) has flow rate=(\S+); tunnels? leads? to valves? (.+)/g;
-        let match = regex.exec(line);
-
-        let rate = parseInt(match[2]);
-        if (rate > 0) {
-            valveStates.set(match[1], { 'rate': rate, 'open': false, 'timeOpened': 0 });
-            simplifiedValveNetwork[match[1]] = { 'id': match[1], 'to': [] };
-        }
-        originalValveNetwork[match[1]] = {
-            'id': match[1],
-            'distance': 999,
-            'to': match[3].split(', ')
-        };
+        let row = [...line];
+        row.forEach((element, columnIndex) => {
+            if (element == '#')
+                elves.push({ 'position': [columnIndex, rowIndex], 'previousMove': NONE, 'nextMove': NONE });
+        });
     }
 });
 
-for (const [id, valve] of Object.entries(originalValveNetwork)) {
-    let toIDs = [...valve.to];
-    valve.to = [];
-    toIDs.forEach((id) => {
-        valve.to.push(originalValveNetwork[id])
+let minX = 999;
+let maxX = -999;
+let minY = 999;
+let maxY = -999;
+elves.forEach((elf) => {
+    minX = Math.min(minX, elf.position[0]);
+    maxX = Math.max(maxX, elf.position[0]);
+    minY = Math.min(minY, elf.position[1]);
+    maxY = Math.max(maxY, elf.position[1]);
+});
+let size = [maxX - minX + 1 + maxRounds * 2, maxY - minY + 1 + maxRounds * 2];
+let mapOffset = [minX - 1 - maxRounds, minY - 1 - maxRounds];
+
+let simulationStateMap = new Array(size[1]);
+for (let i = 0; i < simulationStateMap.length; ++i)
+    simulationStateMap[i] = new Array(size[0]).fill(FREE);
+
+executeMovement();
+
+for (let round = 0; round < maxRounds; ++round) {
+    prepareMovement(round);
+
+    executeMovement();
+}
+
+
+minX = 999;
+maxX = -999;
+minY = 999;
+maxY = -999;
+elves.forEach((elf) => {
+    minX = Math.min(minX, elf.position[0]);
+    maxX = Math.max(maxX, elf.position[0]);
+    minY = Math.min(minY, elf.position[1]);
+    maxY = Math.max(maxY, elf.position[1]);
+});
+
+let numFreeElements = 0;
+for (let r = minY; r <= maxY; ++r)
+    for (let c = minX; c <= maxX; ++c)
+        if (elementAt([c, r]) < ELF)
+            ++numFreeElements;
+
+console.log(numFreeElements);
+
+function prepareMovement(round) {
+    elves.forEach((elf) => {
+
+        let elfIsClose = false;
+        for (let i = 0; i < NumDirections; ++i) {
+            let next = add(elf.position, directions[i]);
+            if (elementAt(next) >= ELF) {
+                elfIsClose = true;
+                break;
+            }
+        }
+
+        if (elfIsClose) {
+            for (let checkAndMoveDirectionIdx = 0; checkAndMoveDirectionIdx < checkAndMoveDirections.length; ++checkAndMoveDirectionIdx) {
+
+                let cycledCheckAndMoveDirectionIdx = (checkAndMoveDirectionIdx + round) % checkAndMoveDirections.length;
+                let checkAndMoveDirection = checkAndMoveDirections[cycledCheckAndMoveDirectionIdx];
+                let moveDirection = checkAndMoveDirection[0];
+                let checkDirections = checkAndMoveDirection[1];
+
+                let foundElfInCheckDirections = false;
+                for (let i = 0; i < checkDirections.length; ++i) {
+                    let directionToCheck = directions[checkDirections[i]];
+                    let next = add(elf.position, directionToCheck);
+                    let mapEntry = elementAt(next);
+                    if (mapEntry >= ELF) {
+                        foundElfInCheckDirections = true;
+                        break;
+                    }
+                }
+
+                if (!foundElfInCheckDirections) {
+                    let next = add(elf.position, directions[moveDirection]);
+                    elf.nextMove = moveDirection;
+                    setElementAt(next, elementAt(next) + 1);
+                    break;
+                }
+            }
+        }
+
     });
-};
+}
 
-//generate simplified network keeping only shortest connections to vales with rate > 0 with their distances.
-for (const [id, valve] of Object.entries(simplifiedValveNetwork)) {
-    //initialize distances
-    for (const [id, valve] of Object.entries(originalValveNetwork)) { valve.distance = 999; }
-
-    //generate shortest distances
-    updateDistancesOfNeighbors(originalValveNetwork[id], 0);
-
-    //setup connections to others except to 'AA'
-    for (const [otherId, otherValve] of Object.entries(simplifiedValveNetwork)) {
-        if (otherId != id && otherId != startId && originalValveNetwork[otherId].distance < 999) {
-            valve.to.push({ 'valve': otherValve, 'distance': originalValveNetwork[otherId].distance });
+function executeMovement() {
+    elves.forEach((elf) => {
+        if (elf.nextMove != NONE) {
+            let newPosition = add(elf.position, directions[elf.nextMove]);
+            let mapEntry = elementAt(newPosition);
+            if (mapEntry == 1) {
+                elf.position = newPosition;
+            }
+            elf.nextMove = NONE
         }
-    }
+    });
 
-    //order by rate/distance
-    valve.to.sort((a, b) => valveStates.get(b.valve.id).rate / b.distance - valveStates.get(a.valve.id).rate / a.distance);
-};
+    for (let i = 0; i < simulationStateMap.length; ++i)
+        for (let j = 0; j < simulationStateMap[i].length; ++j)
+            simulationStateMap[i][j] = 0;
 
-let maxPossibleTotalRate = 0;
-valveStates.forEach((valveState, id) => {
-    maxPossibleTotalRate += valveState.rate;
-});
+    elves.forEach((elf) => {
+        setElementAt(elf.position, ELF);
+    });
+}
 
-let bestScore = -1;
-let bestHistory = '';
-let checkedCombinations = 0;
-
-updatePressureOfNeighbors(structuredClone(valveStates),
-    simplifiedValveNetwork[startId], 0, '',
-    simplifiedValveNetwork[startId], 0, '');
-
-console.log('=================');
-console.log('best overall ' + bestScore + ' ' + checkedCombinations + ' ' + bestHistory);
 
 
 //helper
-function updatePressureOfNeighbors(valveStates,
-    valveA, targetTimeA, historyA,
-    valveB, targetTimeB, historyB) {
+function drawMap() {
+    for (let i = 0; i < simulationStateMap.length; ++i) {
+        console.log(i + ': ' + (simulationStateMap[i].map((v) => v > 9 ? '#' : (v > 0 ? v : '.')).join('')));
+    }
+}
 
-    let minTargetTime = Math.min(targetTimeA, targetTimeB);
-    if (minTargetTime >= maxTime)
+function elementAt(pos) {
+    let p = sub(pos, mapOffset);
+    if (p[0] < 0 || p[0] >= simulationStateMap[0].length ||
+        p[1] < 0 || p[1] >= simulationStateMap.length)
+        return FREE;
+    return simulationStateMap[p[1]][p[0]];
+}
+
+function setElementAt(pos, element) {
+    let p = sub(pos, mapOffset);
+    if (p[0] < 0 || p[0] >= simulationStateMap[0].length ||
+        p[1] < 0 || p[1] >= simulationStateMap.length)
         return;
-
-    if (minTargetTime > maxTime / 2) {
-        if (totalRate(valveStates) < maxPossibleTotalRate / 3)
-            return;
-    }
-
-    if (targetTimeA < targetTimeB) {
-        let valveOpened = false;
-        [valveOpened, historyA] = tryOpenValve(targetTimeA, valveStates, valveA, historyA);
-        if (!valveOpened)
-            return;
-
-        valveA.to.forEach((toElement) => {
-            let toValveState = valveStates.get(toElement.valve.id);
-            if (!toValveState.open) {
-                updatePressureOfNeighbors(structuredClone(valveStates),
-                    toElement.valve, targetTimeA + 1 + toElement.distance, structuredClone(historyA),
-                    valveB, targetTimeB, structuredClone(historyB));
-            }
-        });
-    }
-    else if (targetTimeA > targetTimeB) {
-        let valveOpened = false;
-        [valveOpened, historyB] = tryOpenValve(targetTimeB, valveStates, valveB, historyB);
-        if (!valveOpened)
-            return;
-
-        valveB.to.forEach((toElement) => {
-            let toValveState = valveStates.get(toElement.valve.id);
-            if (!toValveState.open) {
-                updatePressureOfNeighbors(structuredClone(valveStates),
-                    valveA, targetTimeA, structuredClone(historyA),
-                    toElement.valve, targetTimeB + 1 + toElement.distance, structuredClone(historyB));
-            }
-        });
-    }
-    else { //targetTimeA == targetTimeB
-        let timeConsumedA = 0;
-        let timeConsumedB = 0;
-        if (valveA.id != startId && valveB.id != startId) {
-            if (valveA.id == valveB.id)
-                return;
-
-            let valveAOpened;
-            [valveAOpened, historyA] = tryOpenValve(targetTimeA, valveStates, valveA, historyA);
-            if (!valveAOpened)
-                return;
-
-            let valveBOpened;
-            [valveBOpened, historyB] = tryOpenValve(targetTimeB, valveStates, valveB, historyB);
-            if (!valveBOpened)
-                return;
-
-            timeConsumedA = 1;
-            timeConsumedB = 1;
-        }
-
-        valveA.to.forEach((toElementA) => {
-            let toValveStateA = valveStates.get(toElementA.valve.id);
-            if (!toValveStateA.open) {
-                valveB.to.forEach((toElementB) => {
-                    if (toElementA.valve.id != toElementB.valve.id) {
-                        let toValveStateB = valveStates.get(toElementB.valve.id);
-                        if (!toValveStateB.open) {
-                            updatePressureOfNeighbors(structuredClone(valveStates),
-                                toElementA.valve, targetTimeA + timeConsumedA + toElementA.distance, structuredClone(historyA),
-                                toElementB.valve, targetTimeB + timeConsumedB + toElementB.distance, structuredClone(historyB));
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    ++checkedCombinations;
-
-    let score = totalReleasedPressureAfterMaxTime(valveStates);
-    if (score > bestScore) {
-        bestScore = score;
-        bestHistory = '\n' + historyA + '\n' + historyB;
-        console.log('best so far ' + bestScore + ' ' + checkedCombinations + ' ' + bestHistory);
-    }
+    simulationStateMap[p[1]][p[0]] = element;
 }
 
-function tryOpenValve(time, valveStates, valve, history) {
-    let valveState = valveStates.get(valve.id);
-    if (valveState && !valveState.open) {
-        history += ', ' + (time + 1) + ' ' + valve.id;
-        valveState.timeOpened = time + 1;
-        valveState.open = true;
-        return [true, history];
-    }
-    return [false, history];
+function add(p1, p2) {
+    return [p1[0] + p2[0], p1[1] + p2[1]];
 }
 
-function updateDistancesOfNeighbors(valve, distance) {
-    if (valve.distance < distance)
-        return;
-    valve.distance = distance;
-
-    //stop at valves with rate >0
-    // if (valveStates.get(valve.id) && distance > 0)
-    //     return;
-
-    valve.to.forEach((toValve) => {
-        updateDistancesOfNeighbors(toValve, distance + 1);
-    });
+function sub(p1, p2) {
+    return [p1[0] - p2[0], p1[1] - p2[1]];
 }
 
-function totalReleasedPressureAfterMaxTime(valveStates) {
-    let sum = 0;
-    valveStates.forEach((valveState, id) => {
-        if (valveState.open)
-            sum += (maxTime - valveState.timeOpened) * valveState.rate;
-    });
-    return sum;
+function normalize(dir) {
+    let length = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+    if (length > 0)
+        return [Math.trunc(dir[0] / length), Math.trunc(dir[1] / length)];
+    return dir;
 }
 
-function totalRate(valveStates) {
-    let rate = 0;
-    valveStates.forEach((valveState, id) => {
-        if (valveState.open)
-            rate += valveState.rate;
-    });
-    return rate;
+function sign(value) {
+    if (value >= 0)
+        return 1;
+    else
+        return -1;
+}
+
+function equal(p1, p2) {
+    return p1[0] == p2[0] && p1[1] == p2[1];
 }
