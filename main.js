@@ -37,7 +37,7 @@ let checkAndMoveDirections =
     [W, [W, NW, SW]],
     [E, [E, NE, SE]]];
 
-let maxRounds = 10;
+let maxRounds = 100;
 let elves = [];
 input.split('\n').forEach((line, rowIndex) => {
     if (line.length > 0) {
@@ -68,31 +68,16 @@ for (let i = 0; i < simulationStateMap.length; ++i)
 
 executeMovement();
 
-for (let round = 0; round < maxRounds; ++round) {
+let round = 0;
+let elfWasMoved = true;
+while (elfWasMoved) {
     prepareMovement(round);
 
-    executeMovement();
+    elfWasMoved = executeMovement();
+    ++round;
 }
 
-
-minX = 999;
-maxX = -999;
-minY = 999;
-maxY = -999;
-elves.forEach((elf) => {
-    minX = Math.min(minX, elf.position[0]);
-    maxX = Math.max(maxX, elf.position[0]);
-    minY = Math.min(minY, elf.position[1]);
-    maxY = Math.max(maxY, elf.position[1]);
-});
-
-let numFreeElements = 0;
-for (let r = minY; r <= maxY; ++r)
-    for (let c = minX; c <= maxX; ++c)
-        if (elementAt([c, r]) < ELF)
-            ++numFreeElements;
-
-console.log(numFreeElements);
+console.log(round);
 
 function prepareMovement(round) {
     elves.forEach((elf) => {
@@ -138,12 +123,14 @@ function prepareMovement(round) {
 }
 
 function executeMovement() {
+    let elfWasMoved = false;
     elves.forEach((elf) => {
         if (elf.nextMove != NONE) {
             let newPosition = add(elf.position, directions[elf.nextMove]);
             let mapEntry = elementAt(newPosition);
             if (mapEntry == 1) {
                 elf.position = newPosition;
+                elfWasMoved = true;
             }
             elf.nextMove = NONE
         }
@@ -156,6 +143,8 @@ function executeMovement() {
     elves.forEach((elf) => {
         setElementAt(elf.position, ELF);
     });
+
+    return elfWasMoved;
 }
 
 
