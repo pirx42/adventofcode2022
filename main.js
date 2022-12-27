@@ -1,85 +1,159 @@
 var fs = require('fs');
 var path = require('path');
-var filePath = './inputDay25.txt';
+var filePath = './inputDay24.txt';
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-let snafuToDecimalDigit = {};
-snafuToDecimalDigit['='] = -2;
-snafuToDecimalDigit['-'] = -1;
-snafuToDecimalDigit['0'] = 0;
-snafuToDecimalDigit['1'] = 1;
-snafuToDecimalDigit['2'] = 2;
+const FREE = '.';
+const BORDER = '#';
 
-let decimalToSnafuDigit = {};
-decimalToSnafuDigit['-2'] = '=';
-decimalToSnafuDigit['-1'] = '-';
-decimalToSnafuDigit['0'] = '0';
-decimalToSnafuDigit['1'] = '1';
-decimalToSnafuDigit['2'] = '2';
+let simulationPeriodicLength = 900; //lcm of 36 and 100
 
-let sum = '';
-input.split('\n').forEach((line) => {
+let neighbors = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+let directions = { '>': [1, 0], 'v': [0, 1], '<': [-1, 0], '^': [0, -1] };
+
+let mapOffset = [0, 0];
+let blizzards = [];
+let simulationStateMap = [];
+let simulationStateMapOverTime = [];
+input.split('\n').forEach((line, rowIndex) => {
     if (line.length > 0) {
-        sum = addSn(sum, line);
+        let row = [...line];
+        simulationStateMap.push(row);
+
+        let rowOverTime = new Array(row.length);
+        for (let i = 0; i < row.length; ++i)
+            rowOverTime[i] = new Map();
+        simulationStateMapOverTime.push(rowOverTime);
+
+        row.forEach((element, columnIndex) => {
+            if (element != BORDER && element != FREE)
+                blizzards.push({
+                    'initialPosition': [columnIndex, rowIndex],
+                    'direction': directions[element],
+                    'symbol': element
+                });
+        });
     }
 });
 
-console.log(sum);
+let startPosition = [1, 0];
+let targetPosition = [simulationStateMap[0].length - 2, simulationStateMap.length - 1];
 
-function addSn(a, b) {
-    let arrA = [...a];
-    let arrB = [...b];
-    let minLength = Math.min(arrA.length, arrB.length);
-    let result = '';
-    let carry = 0;
-    let index = 0;
-    for (; index < minLength; ++index) {
-        let a = 0;
-        [a, carry] = addSnDigit(snafuToDecimalDigit[arrA[arrA.length - 1 - index]],
-            snafuToDecimalDigit[arrB[arrB.length - 1 - index]],
-            carry);
-        result = decimalToSnafuDigit[a] + result;
-    }
-    if (arrA.length < arrB.length) {
-        for (; index < arrB.length; ++index) {
-            let a = 0;
-            [a, carry] = addSnDigit(0, snafuToDecimalDigit[arrB[arrB.length - 1 - index]], carry);
-            result = decimalToSnafuDigit[a] + result;
-        }
-    } else {
-        for (; index < arrA.length; ++index) {
-            let a = 0;
-            [a, carry] = addSnDigit(snafuToDecimalDigit[arrA[arrA.length - 1 - index]], 0, carry);
-            result = decimalToSnafuDigit[a] + result;
+console.log('precalcing..');
+for (let time = 0; time < simulationPeriodicLength; ++time) {
+    setupSimulationMap(time);
+
+    for (let i = 0; i < simulationStateMap.length; ++i) {
+        for (let j = 0; j < simulationStateMap[i].length; ++j) {
+            if (simulationStateMap[i][j] == FREE)
+                simulationStateMapOverTime[i][j].set(time, 9999); //time -> time step
         }
     }
-    if (carry != 0)
-        result = decimalToSnafuDigit[carry] + result;
-    return result;
 }
 
-function addSnDigit(a, b, carry) {
-    let r = a + b + carry;
-    if (r > 2) {
-        carry = 1;
-        r -= 5;
-    }
-    else if (r < -2) {
-        carry = -1;
-        r += 5;
-    }
-    else {
-        carry = 0;
-    }
-    return [r, carry];
-}
 
-function snafuToDecimal(snafu) {
-    let result = 0;
-    [...snafu].reverse().forEach((e, index) => {
-        result += Math.pow(5, index) * snafuToDecimalDigit[e];
+console.log('searching..');
+updateDistancesOfNeighbors(startPosition, 0);
+
+function updateDistancesOfNeighbors(current, time) {
+    if (time > 500)
+        return;
+    if (current[0] < 0 || current[0] >= simulationStateMapOverTime[0].length ||
+        current[1] < 0 || current[1] >= simulationStateMapOverTime.length)
+        return;
+
+    let timeInSimulationPeriod = time % simulationPeriodicLength;
+    let entriesAtCurrent = simulationStateMapOverTime[current[1]][current[0]];
+    let foundTime = entriesAtCurrent.get(timeInSimulationPeriod);
+    if (foundTime === undefined || foundTime <= time)
+        return;
+    entriesAtCurrent.set(timeInSimulationPeriod, time);
+
+    neighbors.forEach((neighbor) => {
+        let next = add(current, neighbor);
+        updateDistancesOfNeighbors(next, time + 1);
     });
-    return result;
+
+    updateDistancesOfNeighbors(current, time + 1);
+}
+
+let entriesAtTarget = simulationStateMapOverTime[targetPosition[1]][targetPosition[0]];
+let orderedDistances = [...entriesAtTarget.values()].sort();
+console.log(orderedDistances[0]);
+
+
+
+//helper
+function setupSimulationMap(time) {
+    for (let i = 1; i < simulationStateMap.length - 1; ++i)
+        for (let j = 1; j < simulationStateMap[i].length - 1; ++j)
+            simulationStateMap[i][j] = FREE;
+
+    setElementAt(startPosition, FREE);
+    setElementAt(targetPosition, FREE);
+
+    blizzards.forEach((blizzard) => {
+        let position = add(blizzard.initialPosition, mul(blizzard.direction, time));
+        position[0] = (position[0] - 1 + 9999999 * (simulationStateMap[0].length - 2)) % (simulationStateMap[0].length - 2) + 1;
+        position[1] = (position[1] - 1 + 9999999 * (simulationStateMap.length - 2)) % (simulationStateMap.length - 2) + 1;
+
+        if (elementAt(position) != FREE)
+            setElementAt(position, 'O');
+        else
+            setElementAt(position, blizzard.symbol);
+    });
+}
+
+function drawMap() {
+    for (let i = 0; i < simulationStateMap.length; ++i) {
+        console.log(i + ': ' + (simulationStateMap[i].join('')));
+    }
+}
+
+function elementAt(pos) {
+    let p = sub(pos, mapOffset);
+    if (p[0] < 0 || p[0] >= simulationStateMap[0].length ||
+        p[1] < 0 || p[1] >= simulationStateMap.length)
+        return BORDER;
+    return simulationStateMap[p[1]][p[0]];
+}
+
+function setElementAt(pos, element) {
+    let p = sub(pos, mapOffset);
+    if (p[0] < 0 || p[0] >= simulationStateMap[0].length ||
+        p[1] < 0 || p[1] >= simulationStateMap.length)
+        return;
+    simulationStateMap[p[1]][p[0]] = element;
+}
+
+function add(p1, p2) {
+    return [p1[0] + p2[0], p1[1] + p2[1]];
+}
+
+function sub(p1, p2) {
+    return [p1[0] - p2[0], p1[1] - p2[1]];
+}
+
+function mul(p, t) {
+    return [p[0] * t, p[1] * t];
+}
+
+function normalize(dir) {
+    let length = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1]);
+    if (length > 0)
+        return [Math.trunc(dir[0] / length), Math.trunc(dir[1] / length)];
+    return dir;
+}
+
+function sign(value) {
+    if (value >= 0)
+        return 1;
+    else
+        return -1;
+}
+
+function equal(p1, p2) {
+    return p1[0] == p2[0] && p1[1] == p2[1];
 }
