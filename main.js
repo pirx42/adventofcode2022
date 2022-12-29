@@ -48,40 +48,68 @@ for (let time = 0; time < simulationPeriodicLength; ++time) {
     for (let i = 0; i < simulationStateMap.length; ++i) {
         for (let j = 0; j < simulationStateMap[i].length; ++j) {
             if (simulationStateMap[i][j] == FREE)
-                simulationStateMapOverTime[i][j].set(time, 9999); //time -> time step
+                simulationStateMapOverTime[i][j].set(time, 9999); //time -> distance
         }
     }
 }
 
 
 console.log('searching..');
-updateDistancesOfNeighbors(startPosition, 0);
+updateDistancesOfNeighbors(startPosition, 0, 0);
 
-function updateDistancesOfNeighbors(current, time) {
-    if (time > 500)
+let entriesAtTarget = simulationStateMapOverTime[targetPosition[1]][targetPosition[0]];
+let shortestTimeA = [...entriesAtTarget.values()].sort()[0];
+console.log(shortestTimeA);
+
+
+for (let i = 0; i < simulationStateMapOverTime.length; ++i)
+    for (let j = 0; j < simulationStateMapOverTime[i].length; ++j)
+        simulationStateMapOverTime[i][j].forEach((value, key, map) => map.set(key, 9999));
+
+[startPosition, targetPosition] = [targetPosition, startPosition];
+
+updateDistancesOfNeighbors(startPosition, shortestTimeA % simulationPeriodicLength, 0);
+
+entriesAtTarget = simulationStateMapOverTime[targetPosition[1]][targetPosition[0]];
+let shortestTimeB = [...entriesAtTarget.values()].sort()[0];
+console.log(shortestTimeB);
+
+
+for (let i = 0; i < simulationStateMapOverTime.length; ++i)
+    for (let j = 0; j < simulationStateMapOverTime[i].length; ++j)
+        simulationStateMapOverTime[i][j].forEach((value, key, map) => map.set(key, 9999));
+
+[startPosition, targetPosition] = [targetPosition, startPosition];
+
+updateDistancesOfNeighbors(startPosition, (shortestTimeA + shortestTimeB) % simulationPeriodicLength, 0);
+
+entriesAtTarget = simulationStateMapOverTime[targetPosition[1]][targetPosition[0]];
+let shortestTimeC = [...entriesAtTarget.values()].sort()[0];
+console.log(shortestTimeC);
+
+console.log('total ' + (shortestTimeA + shortestTimeB + shortestTimeC));
+
+
+function updateDistancesOfNeighbors(current, timeInSimulationPeriod, distance) {
+    if (distance > 500)
         return;
     if (current[0] < 0 || current[0] >= simulationStateMapOverTime[0].length ||
         current[1] < 0 || current[1] >= simulationStateMapOverTime.length)
         return;
 
-    let timeInSimulationPeriod = time % simulationPeriodicLength;
     let entriesAtCurrent = simulationStateMapOverTime[current[1]][current[0]];
-    let foundTime = entriesAtCurrent.get(timeInSimulationPeriod);
-    if (foundTime === undefined || foundTime <= time)
+    let foundDistance = entriesAtCurrent.get(timeInSimulationPeriod);
+    if (foundDistance === undefined || foundDistance <= distance)
         return;
-    entriesAtCurrent.set(timeInSimulationPeriod, time);
+    entriesAtCurrent.set(timeInSimulationPeriod, distance);
 
     neighbors.forEach((neighbor) => {
         let next = add(current, neighbor);
-        updateDistancesOfNeighbors(next, time + 1);
+        updateDistancesOfNeighbors(next, (timeInSimulationPeriod + 1) % simulationPeriodicLength, distance + 1);
     });
 
-    updateDistancesOfNeighbors(current, time + 1);
+    updateDistancesOfNeighbors(current, (timeInSimulationPeriod + 1) % simulationPeriodicLength, distance + 1);
 }
-
-let entriesAtTarget = simulationStateMapOverTime[targetPosition[1]][targetPosition[0]];
-let orderedDistances = [...entriesAtTarget.values()].sort();
-console.log(orderedDistances[0]);
 
 
 
