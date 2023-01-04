@@ -29,9 +29,21 @@ for (let i = 0; i < simulationMap.length; ++i) {
     simulationMap[i].push(...new Array(maxRowLength - simulationMap[i].length).fill(OUT));
 }
 
+let tileWidth = 50;
+let tileHeight = 50;
+let tiles = [
+    { id: 0, offset: [1 * 50, 0], neighbors: { '0': [1, 0], '1': [2, 1], '2': [3, 0], '3': [5, 0] } }, //neighbors per outgoing direction: <tileid, incoming direction>
+    { id: 1, offset: [2 * 50, 0], neighbors: { '0': [4, 2], '1': [2, 2], '2': [0, 2], '3': [5, 3] } },
+    { id: 2, offset: [1 * 50, 1 * 50], neighbors: { '0': [1, 3], '1': [4, 1], '2': [3, 1], '3': [0, 3] } },
+    { id: 3, offset: [0 * 50, 2 * 50], neighbors: { '0': [4, 0], '1': [5, 1], '2': [0, 0], '3': [2, 0] } },
+    { id: 4, offset: [1 * 50, 2 * 50], neighbors: { '0': [1, 2], '1': [5, 2], '2': [3, 2], '3': [2, 3] } },
+    { id: 5, offset: [0 * 50, 3 * 50], neighbors: { '0': [4, 3], '1': [1, 1], '2': [0, 1], '3': [3, 3] } },
+]
+
 let commands = lines[lines.length - 2].split(/([LR])/g);
 
-let currentPosition = [simulationMap[0].findIndex((e) => e == FREE), 0];
+let currentTile = 0;
+let currentPosition = [0, 0];
 let currentDirection = 0;
 
 commands.forEach((cmd) => {
@@ -43,33 +55,62 @@ commands.forEach((cmd) => {
     else {
         let steps = parseInt(cmd);
         for (let i = 0; i < steps; ++i) {
-            let next = add(currentPosition, directions[currentDirection]);
-            if (elementAt(next) == OUT) {
-                next = findOppositeInsideElement(currentPosition, currentDirection);
+            let nextTile = currentTile;
+            let nextDirection = structuredClone(currentDirection);
+            let nextPosition = add(currentPosition, directions[currentDirection]);
+            if (nextPosition[0] < 0 || nextPosition[0] >= tileWidth ||
+                nextPosition[1] < 0 || nextPosition[1] >= tileHeight) {
+                [nextTile, nextPosition, nextDirection] = doTileTransition(currentTile, nextPosition, currentDirection);
             }
 
-            if (elementAt(next) == ROCK) {
+            globalNextPos = tileToGlobalPos(nextTile, nextPosition);
+            if (elementAt(globalNextPos) == ROCK) {
                 break;
             } else {
-                currentPosition = next;
+                currentTile = nextTile;
+                currentPosition = nextPosition;
+                currentDirection = nextDirection;
             }
-            setElementAt(currentPosition, currentDirection.toString());
         }
     }
 });
 
 
-console.log('password: ' + ((currentPosition[1] + 1) * 1000 + (currentPosition[0] + 1) * 4 + currentDirection));
+let globalFinalPosition = tileToGlobalPos(currentTile, currentPosition);
+console.log('final position: ' + globalFinalPosition);
+console.log('final direction: ' + currentDirection);
+console.log('password: ' + ((globalFinalPosition[1] + 1) * 1000 + (globalFinalPosition[0] + 1) * 4 + currentDirection));
 
-function findOppositeInsideElement(pos, direction) {
-    let oppositeDirection = (direction + 2) % directions.length;
-    let next = structuredClone(pos);
-    while (elementAt(next) != OUT) {
-        next = add(next, directions[oppositeDirection]);
+
+function doTileTransition(currentTileId, nextPosition, currentDirection) {
+    let currentTile = tiles[currentTileId];
+    let nextTileId = currentTile.neighbors[currentDirection][0];
+    let nextDirection = currentTile.neighbors[currentDirection][1];
+
+    let newNextPosition = structuredClone(nextPosition);
+    if (Math.abs((currentDirection % 2) - (nextDirection % 2)) == 1) {
+        [newNextPosition[0], newNextPosition[1]] = [newNextPosition[1], newNextPosition[0]];
+        newNextPosition = add(newNextPosition, directions[nextDirection]);
     }
-    return add(next, directions[direction]);
+    else if (currentDirection == nextDirection) {
+        newNextPosition[0] = (newNextPosition[0] + tileWidth) % tileWidth;
+        newNextPosition[1] = (newNextPosition[1] + tileHeight) % tileHeight;
+    }
+    else if (Math.abs(currentDirection - nextDirection) == 2) {
+        newNextPosition = add(newNextPosition, directions[nextDirection]);
+        newNextPosition[1] = tileHeight - 1 - newNextPosition[1];
+    }
+    return [nextTileId, newNextPosition, nextDirection];
 }
 
+
+function tileToGlobalPos(tile, pos) {
+    return add(tiles[tile].offset, pos);
+}
+
+function globalToTilePos(tile, pos) {
+    return sub(pos, tiles[tile].offset);
+}
 
 function drawMap() {
     for (let i = 0; i < simulationMap.length; ++i) {
