@@ -103,6 +103,8 @@ class CyclicList {
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
+const key = 811589153;
+
 let elementsInInitialOrder = [];
 let elementListForMixing = new CyclicList();
 let nodeWithValue0 = null;
@@ -110,17 +112,18 @@ let nodeWithValue0 = null;
 let lines = input.split('\n');
 lines.forEach((line) => {
     if (line.length > 0) {
-        let addedNode = elementListForMixing.append(parseInt(line));
+        let addedNode = elementListForMixing.append(parseInt(line) * key);
         elementsInInitialOrder.push(addedNode);
         if (addedNode.data == 0)
             nodeWithValue0 = addedNode;
     }
 });
 
-elementsInInitialOrder.forEach((nodeToMove) => {
-    elementListForMixing.move(nodeToMove, nodeToMove.data);
-});
-console.log(elementListForMixing);
+for (let i = 0; i < 10; ++i) {
+    elementsInInitialOrder.forEach((nodeToMove) => {
+        elementListForMixing.move(nodeToMove, nodeToMove.data % (elementsInInitialOrder.length - 1));
+    });
+}
 
 let node1000 = elementListForMixing.getNthAfter(nodeWithValue0, 1000);
 let node2000 = elementListForMixing.getNthAfter(nodeWithValue0, 2000);
