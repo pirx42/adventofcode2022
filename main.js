@@ -2,6 +2,10 @@ var fs = require('fs');
 var path = require('path');
 var filePath = './inputDay18.txt';
 
+const OUT = -1;
+const FREE = 0;
+const CUBE = 1;
+const WATER = 2;
 
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
@@ -14,6 +18,7 @@ lines.forEach((line) => {
         const regex = /(\S+),(\S+),(\S+)/g;
         let match = regex.exec(line);
         let element = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+        element = add(element, [1, 1, 1]);
         max[0] = Math.max(max[0], element[0]);
         max[1] = Math.max(max[1], element[1]);
         max[2] = Math.max(max[2], element[2]);
@@ -21,17 +26,17 @@ lines.forEach((line) => {
     }
 });
 
-let size = add(max, [1, 1, 1]);
-let grid = new Array(size[2]).fill(0);
+let size = add(max, [2, 2, 2]);
+let grid = new Array(size[2]).fill(FREE);
 for (let z = 0; z < size[2]; ++z) {
-    grid[z] = new Array(size[1]).fill(0);
+    grid[z] = new Array(size[1]).fill(FREE);
     for (let y = 0; y < size[1]; ++y) {
-        grid[z][y] = new Array(size[0]).fill(0);
+        grid[z][y] = new Array(size[0]).fill(FREE);
     }
 }
 
 elements.forEach((element) => {
-    setElementAt(element, 1);
+    setElementAt(element, CUBE);
 });
 
 let neighbors = [
@@ -43,18 +48,44 @@ let neighbors = [
     [0, 0, -1],
 ];
 
+//flood fill water
+setElementAt([0, 0, 0], WATER);
+let gridModified = false;
+do {
+    gridModified = false;
+    for (let z = 0; z < size[2]; ++z) {
+        for (let y = 0; y < size[1]; ++y) {
+            for (let x = 0; x < size[0]; ++x) {
+
+                let current = [x, y, z];
+                if (elementAt(current) == WATER) {
+                    for (let i = 0; i < neighbors.length; ++i) {
+                        let neighborPosition = add(current, neighbors[i]);
+                        if (elementAt(neighborPosition) == FREE) {
+                            setElementAt(neighborPosition, WATER);
+                            gridModified = true;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+} while (gridModified)
+
+//count cube to water neighbor relations
 let numTotalOutsideFaces = 0;
 for (let z = 0; z < size[2]; ++z) {
     for (let y = 0; y < size[1]; ++y) {
         for (let x = 0; x < size[0]; ++x) {
 
             let current = [x, y, z];
-            if (elementAt(current) > 0) {
-                let outsideFaces = 6;
+            if (elementAt(current) == CUBE) {
+                let outsideFaces = 0;
                 neighbors.forEach((neighborOffset) => {
                     let neighbor = add(current, neighborOffset);
-                    if (elementAt(neighbor) > 0)
-                        --outsideFaces;
+                    if (elementAt(neighbor) == WATER)
+                        ++outsideFaces;
                 });
                 numTotalOutsideFaces += outsideFaces;
             }
@@ -70,7 +101,7 @@ function elementAt(pos) {
     if (pos[0] < 0 || pos[0] >= size[0] ||
         pos[1] < 0 || pos[1] >= size[1] ||
         pos[2] < 0 || pos[2] >= size[2])
-        return -1;
+        return OUT;
     return grid[pos[2]][pos[1]][pos[0]];
 }
 
