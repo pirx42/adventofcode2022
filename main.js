@@ -23,12 +23,19 @@ let currentMovingRockIdx = 0;
 let currentCommandIdx = 0;
 let currentMaximalRockHigh = 0;
 
-let stoppedRocks = [];
-
 const MAP_WIDTH = 7;
 let simulationStateMap = [];
 
-while (stoppedRocks.length < 2022) {
+//the target simulation count is too high for any calculation. there must be some kind of periodicity in the simulation.
+//this needs to be found.
+//after analyzing the simulated rocks visually we notice that after rock high of 136 the simulation repeats with periodic length of 2548 high.
+//those hights corresponds to 91 and 1690 fallen rocks. that means we only need to simulate the first 91 rocks plus the remainder of (1000000000000 - 91) / 1690 = 469 rocks.
+//so in total 560 rocks need to be simulated.
+//afterwards we can calculate the reached high by trunc((1000000000000 - 91) / 1690) * 2548 plus the simulated high.
+
+let rockFallsToSimulate = 91 + (1000000000000 - 91) % 1690;
+
+while (currentMovingRockIdx < rockFallsToSimulate) {
 
     let rockShape = rockShapes[currentMovingRockIdx % rockShapes.length];
     ++currentMovingRockIdx;
@@ -55,7 +62,6 @@ while (stoppedRocks.length < 2022) {
         nextPosition = add(currentPosition, [0, 1]);
         if (hasCollision(rockShape, nextPosition)) {
             setShapeAt(rockShape, currentPosition);
-            stoppedRocks.push({ position: currentPosition, shape: rockShape });
             let shapeRockHigh = simulationStateMap.length - currentPosition[1] + (rockShape.height - 1);
             currentMaximalRockHigh = Math.max(currentMaximalRockHigh, shapeRockHigh);
             break;
@@ -66,7 +72,8 @@ while (stoppedRocks.length < 2022) {
     }
 }
 
-console.log(currentMaximalRockHigh);
+let totalReachedHigh = currentMaximalRockHigh + Math.trunc((1000000000000 - 91) / 1690) * 2548;
+console.log(totalReachedHigh);
 
 
 //helper
@@ -87,7 +94,7 @@ function setShapeAt(shape, pos) {
 
 function drawMap() {
     for (let i = 0; i < simulationStateMap.length; ++i) {
-        console.log(i + ': ' + (simulationStateMap[i].map((e) => {
+        console.log((simulationStateMap[i].map((e) => {
             if (e == 0)
                 return '.'
             else
