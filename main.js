@@ -5,7 +5,7 @@ var filePath = './inputDay19.txt';
 let buffer = fs.readFileSync(path.join(__dirname, filePath));
 let input = buffer.toString();
 
-const MAX_TIME = 24;
+const MAX_TIME = 32;
 const ORE_ROBOT_ID = 0;
 const CLAY_ROBOT_ID = 1;
 const OBSIDIAN_ROBOT_ID = 2;
@@ -35,7 +35,7 @@ let bestScore = 0;
 let timeFirstGeodeFound = 999;
 let bluePrint = bluePrints[0];
 
-for (let i = 0; i < bluePrints.length; ++i) {
+for (let i = 0; i < 3; ++i) {
     bestScore = 0;
     timeFirstGeodeFound = 999;
     bluePrint = bluePrints[i];
@@ -45,11 +45,7 @@ for (let i = 0; i < bluePrints.length; ++i) {
     console.log((i + 1) + ' ' + bestScore);
 }
 
-let sum = 0;
-for (let i = 0; i < bluePrints.length; ++i) {
-    sum += results[i] * (i + 1);
-}
-console.log(sum);
+console.log(results[0] * results[1] * results[2]);
 
 
 //helper
@@ -107,15 +103,31 @@ function doNextStep(states, time) {
             nextStates.push(newStates);
         }
     }
-    {
+
+    if (nextStates.length == 0) {
         let newStates = structuredClone(states);
-        collectResources(newStates);
-        nextStates.push(newStates);
+        let roundsToWaitToBuildNextOreRobot = Math.ceil((bluePrint.oreCosts[ORE_ROBOT_ID] - newStates.collectedOre) / newStates.oreRobots);
+        let roundsToWaitToBuildNextClayRobot = Math.ceil((bluePrint.oreCosts[CLAY_ROBOT_ID] - newStates.collectedOre) / newStates.oreRobots);
+        let roundsToWaitToBuildNextObsidianRobot = Math.max(Math.ceil((bluePrint.oreCosts[OBSIDIAN_ROBOT_ID] - newStates.collectedOre) / newStates.oreRobots),
+            Math.ceil((bluePrint.clayCosts[OBSIDIAN_ROBOT_ID] - newStates.collectedClay) / newStates.clayRobots));
+        let roundsToWaitToBuildNextGeodeRobot = Math.max(Math.ceil((bluePrint.oreCosts[GEODE_ROBOT_ID] - newStates.collectedOre) / newStates.oreRobots),
+            Math.ceil((bluePrint.obsidianCosts[GEODE_ROBOT_ID] - newStates.collectedObsidian) / newStates.obsidianRobots));
+
+        let timeToWait = Math.min(roundsToWaitToBuildNextOreRobot, roundsToWaitToBuildNextClayRobot,
+            roundsToWaitToBuildNextObsidianRobot, roundsToWaitToBuildNextGeodeRobot);
+        timeToWait = Math.max(timeToWait, 1);
+
+        for (let i = 0; i < timeToWait; ++i)
+            collectResources(newStates);
+
+        doNextStep(newStates, time + timeToWait);
+    }
+    else {
+        nextStates.forEach((state) => {
+            doNextStep(state, time + 1);
+        });
     }
 
-    nextStates.forEach((state) => {
-        doNextStep(state, time + 1);
-    });
 }
 
 function createRobot(time, id, bluePrint, states) {
@@ -130,7 +142,7 @@ function createRobot(time, id, bluePrint, states) {
         case ORE_ROBOT_ID: {
             if (states.collectedOre >= requiredOre &&
                 numOreRobots < 4 &&
-                timeRemaining >= 14) {
+                timeRemaining >= 16) {
                 states.collectedOre -= requiredOre;
                 return true;
             }
@@ -139,7 +151,7 @@ function createRobot(time, id, bluePrint, states) {
         case CLAY_ROBOT_ID: {
             if (states.collectedOre >= requiredOre &&
                 numClayRobots < bluePrint.clayCosts[OBSIDIAN_ROBOT_ID] - 1 &&
-                timeRemaining >= 6) {
+                timeRemaining >= 7) {
                 states.collectedOre -= requiredOre;
                 return true;
             }
@@ -147,7 +159,7 @@ function createRobot(time, id, bluePrint, states) {
         }
         case OBSIDIAN_ROBOT_ID: {
             if (states.collectedOre >= requiredOre && states.collectedClay >= requiredClay &&
-                timeRemaining >= 3 &&
+                timeRemaining >= 4 &&
                 numObsidianRobots < bluePrint.obsidianCosts[GEODE_ROBOT_ID]) {
                 states.collectedOre -= requiredOre;
                 states.collectedClay -= requiredClay;
